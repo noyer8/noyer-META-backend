@@ -1,14 +1,17 @@
 import express from "express";
-import { instagramPost } from "./instagram.js";
+import { instagramPost, instagramStory } from "./instagram.js";
 
 const app = express();
 app.use(express.json());
 
 // ================================
-// ROUTES
+// INSTAGRAM ROUTES
 // ================================
 app.post("/instagram/post", instagramPost);
+app.post("/instagram/story", instagramStory);
 
+// ================================
+// ROOT CHECK
 // ================================
 app.get("/", (req, res) => {
   res.send("Noyer META Backend is running 🚀");
