@@ -120,3 +120,49 @@ export async function instagramStory(req, res) {
     return res.status(500).json({ error: "Instagram story failed" });
   }
 }
+
+// ================================
+// POST /instagram/reel
+// ================================
+export async function instagramReel(req, res) {
+  try {
+    const { access_token, instagram_id, video_url, caption } = req.body;
+
+    if (!access_token || !instagram_id || !video_url) {
+      return res.status(400).json({ error: "Missing parameters" });
+    }
+
+    // 1. Create video container
+    const container = await fetch(
+      `https://graph.facebook.com/v21.0/${instagram_id}/media`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          media_type: "REELS",
+          video_url,
+          caption,
+          access_token
+        })
+      }
+    ).then(r => r.json());
+
+    // 2. Publish Reel
+    const published = await fetch(
+      `https://graph.facebook.com/v21.0/${instagram_id}/media_publish`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creation_id: container.id,
+          access_token
+        })
+      }
+    ).then(r => r.json());
+
+    return res.json(published);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Instagram reel failed" });
+  }
+}
