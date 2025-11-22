@@ -1,0 +1,14 @@
+{
+  "name": "noyer-meta-backend",
+  "version": "1.0.0",
+  "description": "Backend pour publier sur Facebook & Instagram (posts, reels, stories)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2"
+  }
+}
