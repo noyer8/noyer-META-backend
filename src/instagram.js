@@ -1,15 +1,31 @@
 import fetch from "node-fetch";
 
+//
+// 🟣 Fonction utilitaire : Attendre le traitement Meta
+//
+async function waitForMediaReady(creationId, access_token) {
+  let status = "IN_PROGRESS";
+  let attempts = 0;
+
+  while (status !== "FINISHED" && attempts < 15) {
+    await new Promise(res => setTimeout(res, 2000)); // attendre 2s
+
+    const check = await fetch(
+      `https://graph.facebook.com/v21.0/${creationId}?fields=status_code&access_token=${access_token}`
+    ).then(r => r.json());
+
+    status = check.status_code;
+    attempts++;
+  }
+
+  return status === "FINISHED";
+}
+
+//
 // ================================
 // POST /instagram/post
 // ================================
-// JSON attendu :
-// {
-//   "access_token": "XXX",
-//   "instagram_id": "1784...",
-//   "caption": "Texte du post",
-//   "photos": ["https://url.com/1.jpg", "https://url.com/2.jpg"]
-// }
+//
 export async function instagramPost(req, res) {
   try {
     const { access_token, instagram_id, caption, photos } = req.body;
@@ -18,8 +34,9 @@ export async function instagramPost(req, res) {
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    // 1. Upload de chaque photo -> media_ids
+    // 1. Upload de chaque photo
     let mediaIds = [];
+
     for (const url of photos) {
       const media = await fetch(
         `https://graph.facebook.com/v21.0/${instagram_id}/media`,
@@ -35,15 +52,21 @@ export async function instagramPost(req, res) {
       ).then(r => r.json());
 
       if (!media.id) {
-        console.error("Instagram media error:", media);
-        return res.status(500).json({ error: "Failed to create media item" });
+        console.error("Media upload error:", media);
+        return res.status(500).json({ error: "Failed to upload media" });
+      }
+
+      // ❗ Attendre que Meta traite la photo
+      const ready = await waitForMediaReady(media.id, access_token);
+      if (!ready) {
+        return res.status(500).json({ error: "Media is not ready" });
       }
 
       mediaIds.push(media.id);
     }
 
-    // 2. Création du container (carrousel ou image simple)
-    const containerBody =
+    // 2. Créer le container final
+    const containerData =
       photos.length > 1
         ? {
             media_type: "CAROUSEL",
@@ -62,16 +85,24 @@ export async function instagramPost(req, res) {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(containerBody)
+        body: JSON.stringify(containerData)
       }
     ).then(r => r.json());
 
     if (!container.id) {
-      console.error("Instagram container error:", container);
+      console.error("Container creation error:", container);
       return res.status(500).json({ error: "Failed to create container" });
     }
 
-    // 3. Publication
+    // ❗ Attendre traitement du container aussi
+    const containerReady = await waitForMediaReady(container.id, access_token);
+    if (!containerReady) {
+      return res
+        .status(500)
+        .json({ error: "Container is not ready for publishing" });
+    }
+
+    // 3. Publier
     const published = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media_publish`,
       {
@@ -91,15 +122,11 @@ export async function instagramPost(req, res) {
   }
 }
 
+//
 // ================================
 // POST /instagram/story
 // ================================
-// JSON attendu :
-// {
-//   "access_token": "XXX",
-//   "instagram_id": "1784...",
-//   "media_url": "https://url.com/story.jpg" | "https://url.com/story.mp4"
-// }
+//
 export async function instagramStory(req, res) {
   try {
     const { access_token, instagram_id, media_url } = req.body;
@@ -110,33 +137,33 @@ export async function instagramStory(req, res) {
 
     const isVideo = media_url.toLowerCase().endsWith(".mp4");
 
-    // 1. Création du média (IMAGE ou VIDEO)
-    const mediaBody = {
-      media_type: isVideo ? "VIDEO" : "IMAGE",
-      access_token
-    };
-
-    if (isVideo) {
-      mediaBody.video_url = media_url;
-    } else {
-      mediaBody.image_url = media_url;
-    }
-
+    // 1. Upload du média
     const media = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mediaBody)
+        body: JSON.stringify({
+          media_type: isVideo ? "VIDEO" : "IMAGE",
+          video_url: isVideo ? media_url : undefined,
+          image_url: !isVideo ? media_url : undefined,
+          access_token
+        })
       }
     ).then(r => r.json());
 
     if (!media.id) {
-      console.error("Instagram story media error:", media);
-      return res.status(500).json({ error: "Failed to create story media" });
+      console.error("Story upload error:", media);
+      return res.status(500).json({ error: "Failed to upload story" });
     }
 
-    // 2. Publication
+    // ❗ Attendre que le média soit traité
+    const ready = await waitForMediaReady(media.id, access_token);
+    if (!ready) {
+      return res.status(500).json({ error: "Story media is not ready" });
+    }
+
+    // 2. Publier
     const published = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media_publish`,
       {
@@ -156,16 +183,11 @@ export async function instagramStory(req, res) {
   }
 }
 
+//
 // ================================
 // POST /instagram/reel
 // ================================
-// JSON attendu :
-// {
-//   "access_token": "XXX",
-//   "instagram_id": "1784...",
-//   "video_url": "https://url.com/reel.mp4",
-//   "caption": "Texte du reel"
-// }
+//
 export async function instagramReel(req, res) {
   try {
     const { access_token, instagram_id, video_url, caption } = req.body;
@@ -174,7 +196,7 @@ export async function instagramReel(req, res) {
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    // 1. Création du container de Reel
+    // 1. Création du container REEL
     const container = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media`,
       {
@@ -190,11 +212,17 @@ export async function instagramReel(req, res) {
     ).then(r => r.json());
 
     if (!container.id) {
-      console.error("Instagram reel container error:", container);
+      console.error("Reel container error:", container);
       return res.status(500).json({ error: "Failed to create reel container" });
     }
 
-    // 2. Publication du Reel
+    // ❗ Attendre que Meta traite la vidéo
+    const ready = await waitForMediaReady(container.id, access_token);
+    if (!ready) {
+      return res.status(500).json({ error: "Reel media is not ready" });
+    }
+
+    // 2. Publier
     const published = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media_publish`,
       {
