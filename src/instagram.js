@@ -23,7 +23,7 @@ async function waitForMediaReady(creationId, access_token) {
 
 //
 // ================================
-// POST /instagram/post
+// POST /instagram/post (carrousel + single photo)
 // ================================
 //
 export async function instagramPost(req, res) {
@@ -34,9 +34,9 @@ export async function instagramPost(req, res) {
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    // 1. Upload de chaque photo
     let mediaIds = [];
 
+    // Upload chaque média
     for (const url of photos) {
       const media = await fetch(
         `https://graph.facebook.com/v21.0/${instagram_id}/media`,
@@ -56,7 +56,6 @@ export async function instagramPost(req, res) {
         return res.status(500).json({ error: "Failed to upload media" });
       }
 
-      // ❗ Attendre que Meta traite la photo
       const ready = await waitForMediaReady(media.id, access_token);
       if (!ready) {
         return res.status(500).json({ error: "Media is not ready" });
@@ -65,7 +64,7 @@ export async function instagramPost(req, res) {
       mediaIds.push(media.id);
     }
 
-    // 2. Créer le container final
+    // Container final : carrousel ou single
     const containerData =
       photos.length > 1
         ? {
@@ -94,7 +93,6 @@ export async function instagramPost(req, res) {
       return res.status(500).json({ error: "Failed to create container" });
     }
 
-    // ❗ Attendre traitement du container aussi
     const containerReady = await waitForMediaReady(container.id, access_token);
     if (!containerReady) {
       return res
@@ -102,7 +100,7 @@ export async function instagramPost(req, res) {
         .json({ error: "Container is not ready for publishing" });
     }
 
-    // 3. Publier
+    // Publication
     const published = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media_publish`,
       {
@@ -124,7 +122,7 @@ export async function instagramPost(req, res) {
 
 //
 // ================================
-// POST /instagram/story
+// POST /instagram/story (CORRIGÉ AVEC media_type: "STORIES")
 // ================================
 //
 export async function instagramStory(req, res) {
@@ -137,14 +135,14 @@ export async function instagramStory(req, res) {
 
     const isVideo = media_url.toLowerCase().endsWith(".mp4");
 
-    // 1. Upload du média
+    // Upload du média — IMPORTANT : media_type = STORIES
     const media = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          media_type: isVideo ? "VIDEO" : "IMAGE",
+          media_type: "STORIES",
           video_url: isVideo ? media_url : undefined,
           image_url: !isVideo ? media_url : undefined,
           access_token
@@ -157,13 +155,12 @@ export async function instagramStory(req, res) {
       return res.status(500).json({ error: "Failed to upload story" });
     }
 
-    // ❗ Attendre que le média soit traité
     const ready = await waitForMediaReady(media.id, access_token);
     if (!ready) {
       return res.status(500).json({ error: "Story media is not ready" });
     }
 
-    // 2. Publier
+    // Publier la story
     const published = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media_publish`,
       {
@@ -196,7 +193,6 @@ export async function instagramReel(req, res) {
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    // 1. Création du container REEL
     const container = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media`,
       {
@@ -216,13 +212,11 @@ export async function instagramReel(req, res) {
       return res.status(500).json({ error: "Failed to create reel container" });
     }
 
-    // ❗ Attendre que Meta traite la vidéo
     const ready = await waitForMediaReady(container.id, access_token);
     if (!ready) {
       return res.status(500).json({ error: "Reel media is not ready" });
     }
 
-    // 2. Publier
     const published = await fetch(
       `https://graph.facebook.com/v21.0/${instagram_id}/media_publish`,
       {
