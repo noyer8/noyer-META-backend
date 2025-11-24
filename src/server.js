@@ -1,8 +1,16 @@
 import express from "express";
 import bodyParser from "body-parser";
-import { postToInstagram, postInstagramReel, postInstagramStory } from "./instagram.js";
-import { postToFacebook, postFacebookStory } from "./facebook.js";
-import { uploadFacebookReel } from "./facebook_reels.js";
+
+import { 
+  postToInstagram, 
+  postInstagramReel, 
+  postInstagramStory 
+} from "./instagram.js";
+
+import { 
+  postToFacebook, 
+  postFacebookStory 
+} from "./facebook.js";
 
 const app = express();
 app.use(bodyParser.json());
@@ -15,7 +23,7 @@ app.get("/", (req, res) => {
 });
 
 // ---------------------------------------------------------
-// INSTAGRAM POST
+// INSTAGRAM POST (photos / carrousel)
 // ---------------------------------------------------------
 app.post("/instagram/post", async (req, res) => {
   try {
@@ -74,7 +82,7 @@ app.post("/instagram/story", async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// FACEBOOK POST
+// FACEBOOK POST (plusieurs images)
 // ---------------------------------------------------------
 app.post("/facebook/post", async (req, res) => {
   try {
@@ -94,7 +102,7 @@ app.post("/facebook/post", async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// FACEBOOK STORY
+// FACEBOOK STORY (image uniquement)
 // ---------------------------------------------------------
 app.post("/facebook/story", async (req, res) => {
   try {
@@ -109,26 +117,6 @@ app.post("/facebook/story", async (req, res) => {
     res.json({ success: true, result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ---------------------------------------------------------
-// FACEBOOK REEL (MODULE SÉPARÉ)
-// ---------------------------------------------------------
-app.post("/facebook/reel", async (req, res) => {
-  try {
-    const { access_token, page_id, video_url, description } = req.body;
-
-    const result = await uploadFacebookReel({
-      accessToken: access_token,
-      pageId: page_id,
-      videoPath: video_url, // Ex: /mnt/data/pexels-kampus-production-8354894 (240p).mp4
-      description
-    });
-
-    res.json({ success: true, result });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
   }
 });
 
