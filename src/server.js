@@ -1,12 +1,14 @@
 import express from "express";
 import bodyParser from "body-parser";
 
+// === IMPORTS RÉELS QUI EXISTENT DANS TON FICHIER instagram.js ===
 import { 
-  postToInstagram, 
-  postInstagramReel, 
-  postInstagramStory 
+  instagramPost, 
+  instagramReel, 
+  instagramStory 
 } from "./instagram.js";
 
+// === IMPORTS RÉELS QUI EXISTENT DANS ton facebook.js ===
 import { 
   postToFacebook, 
   postFacebookStory 
@@ -23,22 +25,14 @@ app.get("/", (req, res) => {
 });
 
 // ---------------------------------------------------------
-// INSTAGRAM POST (photos / carrousel)
+// INSTAGRAM POST (photo ou carrousel)
 // ---------------------------------------------------------
 app.post("/instagram/post", async (req, res) => {
   try {
-    const { access_token, instagram_id, caption, images } = req.body;
-
-    const result = await postToInstagram({
-      instagramId: instagram_id,
-      accessToken: access_token,
-      caption,
-      images
-    });
-
-    res.json({ success: true, result });
+    await instagramPost(req, res);
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -47,18 +41,10 @@ app.post("/instagram/post", async (req, res) => {
 // ---------------------------------------------------------
 app.post("/instagram/reel", async (req, res) => {
   try {
-    const { access_token, instagram_id, video_url, caption } = req.body;
-
-    const result = await postInstagramReel({
-      instagramId: instagram_id,
-      accessToken: access_token,
-      caption,
-      videoUrl: video_url
-    });
-
-    res.json({ success: true, result });
+    await instagramReel(req, res);
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -67,17 +53,10 @@ app.post("/instagram/reel", async (req, res) => {
 // ---------------------------------------------------------
 app.post("/instagram/story", async (req, res) => {
   try {
-    const { access_token, instagram_id, media_url } = req.body;
-
-    const result = await postInstagramStory({
-      instagramId: instagram_id,
-      accessToken: access_token,
-      mediaUrl: media_url
-    });
-
-    res.json({ success: true, result });
+    await instagramStory(req, res);
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -97,7 +76,8 @@ app.post("/facebook/post", async (req, res) => {
 
     res.json({ success: true, result });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -116,7 +96,8 @@ app.post("/facebook/story", async (req, res) => {
 
     res.json({ success: true, result });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
